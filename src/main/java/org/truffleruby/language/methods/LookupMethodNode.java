@@ -84,10 +84,6 @@ public abstract class LookupMethodNode extends RubyBaseNode {
 
         // Actual lookup
 
-        if (foreignProfile.profile(metaClass == context.getCoreLibrary().truffleInteropForeignClass)) {
-            return null;
-        }
-
         final DeclarationContext declarationContext = RubyArguments.tryGetDeclarationContext(frame);
         final InternalMethod method;
         // Lookup first in the metaclass as we are likely to find the method there
@@ -143,10 +139,6 @@ public abstract class LookupMethodNode extends RubyBaseNode {
     protected static MethodLookupResult lookupCached(RubyContext context, Frame callingFrame,
             RubyClass metaClass, String name, DispatchConfiguration config) {
         CompilerAsserts.neverPartOfCompilation("slow-path method lookup should not be compiled");
-
-        if (metaClass == context.getCoreLibrary().truffleInteropForeignClass) {
-            return new MethodLookupResult(null);
-        }
 
         final DeclarationContext declarationContext = RubyArguments.tryGetDeclarationContext(callingFrame);
         final MethodLookupResult method = ModuleOperations.lookupMethodCached(metaClass, name, declarationContext);

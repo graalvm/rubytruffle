@@ -34,6 +34,157 @@ module Polyglot
     Truffle::Interop.enumerable(object)
   end
 
+  # HasArrayElementsTrait
+  module HasArrayElementsTrait
+
+    private def read_array_element(index)
+      Truffle::Interop.read_array_element(self, index)
+    end
+
+    def [](index)
+      index += length if index < 0
+      return nil if (index < 0 || index >= length)
+      read_array_element(index)
+    end
+
+    alias_method :at, :[]
+
+    def first
+      read_array_element(0)
+    end
+
+    def last
+      read_array_element(length - 1)
+    end
+
+    def size
+      Truffle::Interop.array_size(self)
+    end
+
+    alias_method :length, :size
+
+    def count(item = nil)
+      seq = 0
+      if (!item.nil?)
+        each { |o| seq += 1 if item == o }
+      elsif block_given?
+        each { |o| seq += 1 if yield(o) }
+      else
+        return size
+      end
+      seq
+    end
+
+    def to_a
+      if Truffle::Interop.has_array_elements?(self)
+        Truffle::Interop.to_array(self)
+      else
+        raise RuntimeError
+      end
+    end
+
+    alias_method :to_ary, :to_a
+
+    def each(*args)
+      return enum_for(:each) unless block_given?
+      i = 0
+      while i < length
+        yield read_array_element(i)
+        i += 1
+      end
+    end
+
+    def each_with_index
+      return enum_for(:each) unless block_given?
+      i = 0
+      while i < length
+        yield read_array_element(i), i
+        i += 1
+      end
+    end
+
+  end
+
+  # ForeignObject class
+  class ForeignObject < Object
+
+    def respond_to?(symbol, include_all = false)
+      Truffle::Interop.foreign_respond_to?(self, symbol)
+    end
+
+    def class
+      Truffle::Interop.foreign_class(self)
+    end
+
+    def object_id
+      Truffle::Interop.identity_hash_code(self)
+    end
+
+    alias_method :__id__, :object_id
+
+    def equal?(other_object)
+      Truffle::Interop.identical?(self, other_object)
+    end
+
+    def inspect
+      Truffle::Interop.foreign_inspect(self)
+    end
+
+    def java_class?(klass)
+      Truffle::Interop.java_class?(klass)
+    end
+
+    def is_a?(klass)
+      Truffle::Interop.foreign_is_a?(self, klass)
+    end
+
+    alias_method :kind_of?, :is_a?
+
+    def nil?
+      Truffle::Interop.null?(self)
+    end
+
+    def to_str
+      Truffle::Interop.foreign_to_str(self)
+    end
+
+    def to_s
+      Truffle::Interop.foreign_to_s(self)
+    end
+
+    def to_i
+      return Truffle::Interop.as_int(self) if Truffle::Interop.fits_in_int?(self)
+      return Truffle::Interop.as_long(self) if Truffle::Interop.fits_in_long?(self)
+      raise TypeError, "can't convert foreign object to Integer"
+    end
+
+    def to_f
+      return Truffle::Interop.as_double(self) if Truffle::Interop.fits_in_double?(self)
+      return Truffle::Interop.as_long(self).to_f if Truffle::Interop.fits_in_long?(self)
+      raise TypeError, "can't convert foreign object to Float"
+    end
+
+    def keys
+      Truffle::Interop.members(self, false)
+    end
+
+    def []=(member, value)
+      return Truffle::Interop.write_array_element(self, member, value) if member.is_a? Numeric
+      Truffle::Interop.write_member(self, member, value)
+    end
+
+    def delete(index)
+      Truffle::Interop.remove_array_element(self, index) if index.is_a? Numeric
+      Truffle::Interop.remove_member(self, index)
+    end
+
+  end
+
+  class ForeignArray < ForeignObject
+    include Enumerable
+    include HasArrayElementsTrait
+  end
+
 end
 
 module Java

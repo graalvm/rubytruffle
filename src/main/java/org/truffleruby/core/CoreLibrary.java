@@ -162,6 +162,8 @@ public class CoreLibrary {
     public final RubyClass securityErrorClass;
     public final RubyClass standardErrorClass;
     public final RubyModule polyglotModule;
+    public final RubyClass polyglotForeignObjectClass;
+    public final RubyClass polyglotForeignArrayClass;
     public final RubyClass unsupportedMessageErrorClass;
     public final RubyClass stringClass;
     public final RubyClass symbolClass;
@@ -185,7 +187,6 @@ public class CoreLibrary {
     public final RubyModule truffleBootModule;
     public final RubyModule truffleExceptionOperationsModule;
     public final RubyModule truffleInteropModule;
-    public final RubyClass truffleInteropForeignClass;
     public final RubyClass unsupportedMessageExceptionClass;
     public final RubyClass invalidArrayIndexExceptionClass;
     public final RubyClass unknownIdentifierExceptionClass;
@@ -348,6 +349,8 @@ public class CoreLibrary {
         zeroDivisionErrorClass = defineClass(standardErrorClass, "ZeroDivisionError");
         polyglotModule = defineModule("Polyglot");
         unsupportedMessageErrorClass = defineClass(polyglotModule, standardErrorClass, "UnsupportedMessageError");
+        polyglotForeignObjectClass = defineClass(polyglotModule, objectClass, "ForeignObject");
+        polyglotForeignArrayClass = defineClass(polyglotModule, polyglotForeignObjectClass, "ForeignArray");
 
         // StandardError > RuntimeError
         runtimeErrorClass = defineClass(standardErrorClass, "RuntimeError");
@@ -477,7 +480,6 @@ public class CoreLibrary {
         graalErrorClass = defineClass(truffleModule, exceptionClass, "GraalError");
         truffleExceptionOperationsModule = defineModule(truffleModule, "ExceptionOperations");
         truffleInteropModule = defineModule(truffleModule, "Interop");
-        truffleInteropForeignClass = defineClass(truffleInteropModule, objectClass, "Foreign");
         RubyClass interopExceptionClass = defineClass(
                 truffleInteropModule,
                 exceptionClass,

@@ -35,6 +35,7 @@ import org.truffleruby.language.methods.LookupMethodNode;
 import org.truffleruby.language.methods.LookupMethodNodeGen;
 import org.truffleruby.language.objects.MetaClassNode;
 import org.truffleruby.language.objects.MetaClassNodeGen;
+import org.truffleruby.language.objects.IsANode;
 import org.truffleruby.options.Options;
 
 public class DispatchNode extends FrameAndVariablesSendingNode implements DispatchingNode {
@@ -117,7 +118,6 @@ public class DispatchNode extends FrameAndVariablesSendingNode implements Dispat
         assert block instanceof Nil || block instanceof RubyProc : block;
 
         final RubyClass metaclass = metaclassNode.execute(receiver);
-
         final InternalMethod method = methodLookup.execute(frame, metaclass, methodName, config);
 
         if (methodMissing.profile(method == null || method.isUndefined())) {
@@ -126,7 +126,9 @@ public class DispatchNode extends FrameAndVariablesSendingNode implements Dispat
                     return MISSING;
                 case CALL_METHOD_MISSING:
                     // Both branches implicitly profile through lazy node creation
-                    if (metaclass == getContext().getCoreLibrary().truffleInteropForeignClass) {
+                    if (IsANode.getUncached().executeIsA(
+                            receiver,
+                            getContext().getCoreLibrary().polyglotForeignObjectClass)) {
                         return callForeign(receiver, methodName, block, arguments);
                     } else {
                         return callMethodMissing(frame, receiver, methodName, block, arguments);

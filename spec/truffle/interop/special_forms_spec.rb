@@ -67,9 +67,9 @@ describe "Interop special forms" do
 
   it description['[index]', :readArrayElement, [:index]] do
     pfo, pa, l  = proxy[TruffleInteropSpecs::PolyglotArray.new]
-    -> { pfo[0] }.should raise_error(IndexError)
-    l.log.should include(['readArrayElement', 0])
-    pa.log.should include([:polyglot_read_array_element, 0])
+    pfo[0].should == nil
+    l.log.should include(['getArraySize'])
+    pa.log.should include([:polyglot_array_size])
   end
 
   it description['[name] = value', :writeMember, [:name, :value]] do
@@ -136,9 +136,9 @@ describe "Interop special forms" do
   end
 
   it description['.size', :getArraySize] do
-    pfo, _, l = proxy[Object.new]
-    -> { pfo.size }.should raise_error(Polyglot::UnsupportedMessageError)
-    l.log.should include(['getArraySize'])
+    # Method size does not exist for a foreign object
+    pfo, _, _l = proxy[Object.new]
+    -> { pfo.size }.should raise_error(NameError)
   end
 
   it description['.keys', :getMembers] do
@@ -202,13 +202,13 @@ describe "Interop special forms" do
   it description['.class', :getMetaObject] do
     pfo, _, l = proxy[Truffle::Debug.foreign_object]
     # For Truffle::Debug.foreign_object, hasMetaObject() is false, so then .class returns Truffle::Interop::Foreign
-    pfo.class.should == Truffle::Interop::Foreign
+    pfo.class.should == Polyglot::ForeignObject
     l.log.should include(["hasMetaObject"])
   end
 
   it doc['.inspect', 'returns a Ruby-style `#inspect` string showing members, array elements, etc'] do
     # More detailed specs in spec/truffle/interop/foreign_inspect_to_s_spec.rb
-    Truffle::Debug.foreign_object.inspect.should =~ /\A#<Foreign:0x\h+>\z/
+    Truffle::Debug.foreign_object.inspect.should =~ /\A#<Foreign Polyglot::ForeignObject:0x\h+>\z/
   end
 
   it description['.to_s', :asString, [], 'when `isString(foreign_object)` is true'] do
@@ -237,15 +237,15 @@ describe "Interop special forms" do
   end
 
   it doc['.to_a', 'converts to a Ruby `Array` with `Truffle::Interop.to_array(foreign_object)`'] do
-    pfo, _, l = proxy[Object.new]
-    -> { pfo.to_a }.should raise_error(RuntimeError)
-    l.log.should include(["hasArrayElements"])
+    # method to_a does not exist for a foreign object
+    pfo, _, _l = proxy[Object.new]
+    -> { pfo.to_a }.should raise_error(NameError)
   end
 
   it doc['.to_ary', 'converts to a Ruby `Array` with `Truffle::Interop.to_array(foreign_object)`'] do
-    pfo, _, l = proxy[Object.new]
-    -> { pfo.to_a }.should raise_error(RuntimeError)
-    l.log.should include(["hasArrayElements"])
+    # method to_a does not exist for a foreign object
+    pfo, _, _l = proxy[Object.new]
+    -> { pfo.to_a }.should raise_error(NameError)
   end
 
   it doc['.to_f', 'tries to converts to a Ruby `Float` using `asDouble()` and `(double) asLong()` or raises `TypeError`'] do

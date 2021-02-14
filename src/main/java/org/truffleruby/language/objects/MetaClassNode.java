@@ -9,6 +9,8 @@
  */
 package org.truffleruby.language.objects;
 
+import com.oracle.truffle.api.interop.InteropLibrary;
+import com.oracle.truffle.api.library.CachedLibrary;
 import org.truffleruby.RubyContext;
 import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.klass.RubyClass;
@@ -118,11 +120,14 @@ public abstract class MetaClassNode extends RubyBaseNode {
     }
 
     // Foreign object
-
-    @Specialization(guards = "isForeignObject(object)")
+    @Specialization(guards = "isForeignObject(object)", limit = "1")
     protected RubyClass metaClassForeign(Object object,
+            @CachedLibrary("object") InteropLibrary interop,
             @CachedContext(RubyLanguage.class) RubyContext context) {
-        return context.getCoreLibrary().truffleInteropForeignClass;
+        if (interop.hasArrayElements(object)) {
+            return context.getCoreLibrary().polyglotForeignArrayClass;
+        }
+        return context.getCoreLibrary().polyglotForeignObjectClass;
     }
 
     protected int getCacheLimit() {

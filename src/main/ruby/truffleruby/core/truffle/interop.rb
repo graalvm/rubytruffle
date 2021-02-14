@@ -195,14 +195,6 @@ module Truffle
       ForeignEnumerable.new(foreign)
     end
 
-    class Foreign
-
-      # Currently you cannot add methods here, as method calls on this class
-      # (when the object is indeed foreign) are sent as interop messages,
-      # rather than looking them up in the class.
-
-    end
-
     def self.java_array(*array)
       to_java_array(array)
     end
@@ -283,9 +275,7 @@ module Truffle
       else
         string = +"#<#{language}"
         meta_object = Truffle::Interop.meta_object(object)
-        unless Truffle::Interop::Foreign.equal?(meta_object) # no meta object
-          string << " #{Truffle::Interop.meta_qualified_name meta_object}"
-        end
+        string << " #{Truffle::Interop.meta_qualified_name meta_object}"
 
         if Truffle::Interop.pointer?(object)
           string << " pointer 0x#{Truffle::Interop.as_pointer(object).to_s(16)}"
