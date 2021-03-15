@@ -67,9 +67,47 @@ describe "Interop special forms" do
 
   it description['[index]', :readArrayElement, [:index]] do
     pfo, pa, l  = proxy[TruffleInteropSpecs::PolyglotArray.new]
-    -> { pfo[0] }.should raise_error(IndexError)
+    pfo[0] = 1
+    pfo[0].should == 1
     l.log.should include(['readArrayElement', 0])
+    l.log.should include(['getArraySize'])
+    pa.log.should include([:polyglot_array_size])
     pa.log.should include([:polyglot_read_array_element, 0])
+  end
+
+  it description['.at(index)', :readArrayElement, [:index]] do
+    pfo, pa, l = proxy[TruffleInteropSpecs::PolyglotArray.new]
+    pfo[0] = 1
+    pfo[0].should == 1
+    l.log.should include(['readArrayElement', 0])
+    l.log.should include(['getArraySize'])
+    pa.log.should include([:polyglot_array_size])
+    pa.log.should include([:polyglot_read_array_element, 0])
+  end
+
+  it description['.fetch(index)', :readArrayElement, [:index]] do
+    pfo, pa, l = proxy[TruffleInteropSpecs::PolyglotArray.new]
+    -> { pfo.fetch 0 }.should raise_error(IndexError)
+    l.log.should include(['getArraySize'])
+    pa.log.should include([:polyglot_array_size])
+  end
+
+  it description['.first', :readArrayElement, [0]] do
+    pfo, pa, l = proxy[TruffleInteropSpecs::PolyglotArray.new]
+    -> { pfo.first }.should raise_error(IndexError)
+    l.log.should include(['isArrayElementReadable', 0])
+    l.log.should include(['readArrayElement', 0])
+    pa.log.should include([:polyglot_array_element_readable?, 0])
+    pa.log.should include([:polyglot_read_array_element, 0])
+  end
+
+  it description['.last', :readArrayElement, [":getArraySize - 1"]] do
+    pfo, pa, l = proxy[TruffleInteropSpecs::PolyglotArray.new]
+    -> { pfo.last }.should raise_error(IndexError)
+    l.log.should include(['getArraySize'])
+    l.log.should include(['readArrayElement', -1])
+    pa.log.should include([:polyglot_array_element_readable?, -1])
+    pa.log.should include([:polyglot_read_array_element, -1])
   end
 
   it description['[name] = value', :writeMember, [:name, :value]] do
@@ -136,6 +174,12 @@ describe "Interop special forms" do
   end
 
   it description['.size', :getArraySize] do
+    pfo, _, l = proxy[Object.new]
+    -> { pfo.size }.should raise_error(Polyglot::UnsupportedMessageError)
+    l.log.should include(['getArraySize'])
+  end
+
+  it description['.length', :getArraySize] do
     pfo, _, l = proxy[Object.new]
     -> { pfo.size }.should raise_error(Polyglot::UnsupportedMessageError)
     l.log.should include(['getArraySize'])

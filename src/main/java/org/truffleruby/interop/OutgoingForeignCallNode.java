@@ -16,10 +16,10 @@ import org.truffleruby.RubyLanguage;
 import org.truffleruby.core.array.ArrayUtils;
 import org.truffleruby.core.cast.NameToJavaStringNode;
 import org.truffleruby.core.cast.ToSymbolNode;
+import org.truffleruby.core.cast.LongCastNode;
 import org.truffleruby.language.RubyBaseNode;
 import org.truffleruby.language.control.RaiseException;
 import org.truffleruby.language.dispatch.DispatchNode;
-
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.Cached.Shared;
@@ -46,6 +46,10 @@ public abstract class OutgoingForeignCallNode extends RubyBaseNode {
 
     protected final static String INDEX_READ = "[]";
     protected final static String INDEX_WRITE = "[]=";
+    protected final static String AT = "at";
+    protected final static String FETCH = "fetch";
+    protected final static String FIRST = "first";
+    protected final static String LAST = "last";
     protected final static String CALL = "call";
     protected final static String NEW = "new";
     protected final static String TO_A = "to_a";
@@ -58,6 +62,7 @@ public abstract class OutgoingForeignCallNode extends RubyBaseNode {
     protected final static String EQUAL = "equal?";
     protected final static String DELETE = "delete";
     protected final static String SIZE = "size";
+    protected final static String LENGTH = "length";
     protected final static String KEYS = "keys";
     protected final static String CLASS = "class";
     protected final static String INSPECT = "inspect";
@@ -90,6 +95,25 @@ public abstract class OutgoingForeignCallNode extends RubyBaseNode {
         }
     }
 
+    private static Object readIndex(Object receiver, Object[] args, boolean ignoreBoundError, InteropLibrary interop,
+            TranslateInteropExceptionNode translateInteropException,
+            ConditionProfile negativeIndexProfile, LongCastNode longCastNode,
+            RubyContext context, InteropNodes.ReadArrayElementNode readNode) {
+        try {
+            long index = longCastNode.executeCastLong(args[0]);
+            long size = interop.getArraySize(receiver);
+            if (negativeIndexProfile.profile(index < 0)) {
+                index += size;
+            }
+            if (ignoreBoundError && (index < 0 || index >= size)) {
+                return nil;
+            }
+            return readNode.execute(receiver, index);
+        } catch (UnsupportedMessageException e) {
+            throw translateInteropException.execute(e);
+        }
+    }
+
     @Specialization(
             guards = {
                     "name == cachedName",
@@ -99,8 +123,106 @@ public abstract class OutgoingForeignCallNode extends RubyBaseNode {
             limit = "1")
     protected Object readArrayElement(Object receiver, String name, Object[] args,
             @Cached(value = "name", allowUncached = true) @Shared("name") String cachedName,
+            @CachedLibrary("receiver") InteropLibrary interop,
+            @Cached TranslateInteropExceptionNode translateInteropException,
+            @Cached ConditionProfile negativeIndexProfile,
+            @Cached LongCastNode longCastNode,
+            @CachedContext(RubyLanguage.class) RubyContext context,
             @Cached InteropNodes.ReadArrayElementNode readNode) {
-        return readNode.execute(receiver, args[0]);
+        return readIndex(
+                receiver,
+                args,
+                true,
+                interop,
+                translateInteropException,
+                negativeIndexProfile,
+                longCastNode,
+                context,
+                readNode);
+    }
+
+    @Specialization(
+            guards = {
+                    "name == cachedName",
+                    "cachedName.equals(AT)",
+                    "args.length == 1",
+                    "isBasicInteger(first(args))" },
+            limit = "1")
+    protected Object at(Object receiver, String name, Object[] args,
+            @Cached(value = "name", allowUncached = true) @Shared("name") String cachedName,
+            @CachedLibrary("receiver") InteropLibrary interop,
+            @Cached TranslateInteropExceptionNode translateInteropException,
+            @Cached ConditionProfile negativeIndexProfile,
+            @Cached LongCastNode longCastNode,
+            @CachedContext(RubyLanguage.class) RubyContext context,
+            @Cached InteropNodes.ReadArrayElementNode readNode) {
+        return readIndex(
+                receiver,
+                args,
+                true,
+                interop,
+                translateInteropException,
+                negativeIndexProfile,
+                longCastNode,
+                context,
+                readNode);
+    }
+
+    @Specialization(
+            guards = {
+                    "name == cachedName",
+                    "cachedName.equals(FETCH)",
+                    "args.length == 1",
+                    "isBasicInteger(first(args))" },
+            limit = "1")
+    protected Object fetch(Object receiver, String name, Object[] args,
+            @Cached(value = "name", allowUncached = true) @Shared("name") String cachedName,
+            @CachedLibrary("receiver") InteropLibrary interop,
+            @Cached TranslateInteropExceptionNode translateInteropException,
+            @Cached ConditionProfile negativeIndexProfile,
+            @Cached LongCastNode longCastNode,
+            @CachedContext(RubyLanguage.class) RubyContext context,
+            @Cached InteropNodes.ReadArrayElementNode readNode) {
+        return readIndex(
+                receiver,
+                args,
+                false,
+                interop,
+                translateInteropException,
+                negativeIndexProfile,
+                longCastNode,
+                context,
+                readNode);
+    }
+
+    @Specialization(
+            guards = {
+                    "name == cachedName",
+                    "cachedName.equals(FIRST)",
+                    "args.length == 0" },
+            limit = "1")
+    protected Object first(Object receiver, String name, Object[] args,
+            @Cached(value = "name", allowUncached = true) @Shared("name") String cachedName,
+            @Cached InteropNodes.ReadArrayElementNode readNode) {
+        return readNode.execute(receiver, 0);
+    }
+
+    @Specialization(
+            guards = {
+                    "name == cachedName",
+                    "cachedName.equals(LAST)",
+                    "args.length == 0" },
+            limit = "1")
+    protected Object last(Object receiver, String name, Object[] args,
+            @Cached(value = "name", allowUncached = true) @Shared("name") String cachedName,
+            @CachedLibrary("receiver") InteropLibrary interop,
+            @Cached TranslateInteropExceptionNode translateInteropException,
+            @Cached InteropNodes.ReadArrayElementNode readNode) {
+        try {
+            return readNode.execute(receiver, interop.getArraySize(receiver) - 1);
+        } catch (UnsupportedMessageException e) {
+            throw translateInteropException.execute(e);
+        }
     }
 
     @Specialization(
@@ -126,7 +248,6 @@ public abstract class OutgoingForeignCallNode extends RubyBaseNode {
     protected Object writeArrayElement(Object receiver, String name, Object[] args,
             @Cached(value = "name", allowUncached = true) @Shared("name") String cachedName,
             @Cached InteropNodes.WriteArrayElementNode writeNode) {
-
         return writeNode.execute(receiver, args[0], args[1]);
     }
 
@@ -296,6 +417,9 @@ public abstract class OutgoingForeignCallNode extends RubyBaseNode {
             case TO_A:
             case TO_ARY:
             case SIZE:
+            case LENGTH:
+            case FIRST:
+            case LAST:
             case KEYS:
             case INSPECT:
             case CLASS:
@@ -307,6 +431,8 @@ public abstract class OutgoingForeignCallNode extends RubyBaseNode {
             case OBJECT_ID:
             case ID:
                 return 0;
+            case AT:
+            case FETCH:
             case RESPOND_TO:
             case DELETE:
             case IS_A:
@@ -329,6 +455,7 @@ public abstract class OutgoingForeignCallNode extends RubyBaseNode {
             case TO_ARY:
                 return "to_array";
             case SIZE:
+            case LENGTH:
                 return "array_size";
             case KEYS:
                 return "members";
