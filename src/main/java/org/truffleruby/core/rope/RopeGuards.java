@@ -24,6 +24,10 @@ public class RopeGuards {
         return rope instanceof LeafRope;
     }
 
+    public static boolean isLazyIntRope(Rope rope) {
+        return rope instanceof LazyIntRope;
+    }
+
     public static boolean isEmpty(byte[] bytes) {
         return bytes.length == 0;
     }
